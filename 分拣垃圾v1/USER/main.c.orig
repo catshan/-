@@ -1,0 +1,109 @@
+#include "stm32f10x.h"
+#include "timer.h"
+#include "delay.h"
+#include "usart.h"
+#include "can.h"
+/************************************************
+ 舵机控制向日葵太阳能板
+ 作者：腚哥 @ICECOFFFEE
+************************************************/
+
+/***********************************************
+	 20000    20ms
+	 2000     2ms
+	 200      0.2ms   500     0.5ms
+	 
+	 CCR2值     度数
+	 1000       0
+	 2000       45
+	 3000       90
+	 4000       135
+	 5000       180
+	 每个度数为1000/45°
+*************************************************/
+u32 i,j;
+
+u8  Hour (u16 x)
+{
+	for(i=0;i<x;i++)//延时x个小时
+	{
+		for(i=0;i<3600;i++)
+		{
+			delay_ms(1000);//延时1ms*3600=1小时
+		}
+    }
+}
+
+u8  Day(u16 x)
+{
+	for(i=0;i<x;i++)//x天
+	{
+		Hour(24);
+    }
+}
+u8  Month(u8 x)
+{
+	for(i=0;i<x;i++)//x月
+	{
+		Day(30);//三十天为一月
+	}
+
+}
+u8  Year(u8 x)//x年
+{
+	for(i=0;i<x;i++)
+	{
+		Month(12);//12个月为一年
+	}
+}
+
+ int main(void)
+ {	
+    u8 CANBUF_RX[8];
+	delay_init();
+	NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2); //设置 NVIC 中断分组 2
+	uart_init(115200); //串口初始化波特率为 115200
+	TIM3_PWM_Init(19999,35);	 //不分频。0.02s=(19999+1)*(35+1)/36000000  APB1
+	CAN_Mode_Init(CAN_SJW_1tq,CAN_BS2_8tq,CAN_BS1_3tq,3,CAN_Mode_Normal);//1 8 3 3
+
+
+	 while(1)
+	{
+		
+		    if(Can_Receive_Msg(CANBUF_RX))//接收到有数据
+        {
+		    if((CANBUF_RX[0]=0)&&(CANBUF_RX[1]=2)&&(CANBUF_RX[2]=0)&&(CANBUF_RX[3]=0)&&(CANBUF_RX[4]=0)&&(CANBUF_RX[5]=0)&&(CANBUF_RX[6]=0)&&(CANBUF_RX[7]=1))
+			{
+				//接收到 春 秋 分的时间数据，太阳高度角为66.5度，太阳能板需转动（90-66.5）=23.5个度数
+				//所以在六点到十二点每小时转4个度数即可
+				
+	
+				TIM3->CCR2 = 1000;//太阳能板竖直等待太阳升起，此时为6点
+				Hour(1);          //每隔一个小时
+				TIM3->CCR2 = 1089;    //舵机转了四度
+				Hour(1);          //每隔一个小时
+				TIM3->CCR2 = 1178;    //舵机转了八度
+Hour(1);          //每隔一个小时
+				TIM3->CCR2 = 1178+89;    //舵机转了12度
+Hour(1);          //每隔一个小时
+				TIM3->CCR2 = 1178+89+89;    //舵机转了16度
+Hour(1);          //每隔一个小时
+				TIM3->CCR2 = 1178+89+89+89;    //舵机转了20度
+Hour(1);          //每隔一个小时
+				TIM3->CCR2 = 1178+89+89+89+89;    //舵机转了24度
+			}
+			if((CANBUF_RX[0]=0)&&(CANBUF_RX[1]=2)&&(CANBUF_RX[2]=0)&&(CANBUF_RX[3]=0)&&(CANBUF_RX[4]=0)&&(CANBUF_RX[5]=0)&&(CANBUF_RX[6]=0)&&(CANBUF_RX[7]=2))
+			{
+				
+			}
+        }
+			
+		else
+		{
+			printf("没有接收到\r\n");
+		}
+		
+		
+
+	}
+ }
