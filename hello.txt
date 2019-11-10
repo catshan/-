@@ -1,3 +1,4 @@
 hello world
 hello catshan
 这是我在校期间做的一些比赛项目，新人练手，还望各位批评指教
+Creating a new branch is quick AND simple.
