@@ -1,0 +1,122 @@
+/*************************************************************************************
+can.c
+@author : ICECOFFCE
+@action : 主函数
+@data : 2018.12.14
+@founction :
+		初始化及can发送以及接收
+***************************************************************************************/
+
+
+
+#include "myiic.h"
+#include "delay.h"
+#include "sys.h"
+#include "usart.h"
+#include "can.h"
+#include "INA226.h"
+#include "stm32f10x_tim.h"
+#include "dac.h"
+#include "oled.h"
+#include "LTC1473.h"
+
+
+int main(void)
+{
+
+    //CAN工作模式;CAN_Mode_Normal(0)：普通模式，CAN_Mode_LoopBack(1)：环回模式
+    u8 key,i;
+
+    u8 CANBUF_RX[1];
+    float CANBUF_TX[3];
+
+    delay_init();	   	 //延时函数初始化
+    NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2);//设置中断优先级分组为组2：2位抢占优先级，2位响应优先级
+    uart_init(115200);	 	//串口初始化为115200
+	INA226_Init();
+    printf("INA226初始化return%d\r\n",INA226_Init());
+//	DAC5571_Init();
+//	OLED_Init();
+    LTC1473_Init();
+    CAN_Mode_Init(CAN_SJW_1tq,CAN_BS2_8tq,CAN_BS1_9tq,2,CAN_Mode_Normal);     //CAN初始化,波特率1Mbps    89
+
+    while(1)
+    {
+/******************************************************************************************OLED显示电流电压功率
+*******************************************************************************************
+		float i = INIA226_GetCurrent();
+		i *= 1000;
+
+
+		OLED_ShowNum(75,0,i/1000,2,16);
+		OLED_ShowString(100,0,".",16);
+		OLED_ShowNum(103,0,(int)i%1000,2,16);
+
+
+	  i = INA226_GetBusVoltage();
+		i *= 100;
+
+			OLED_ShowNum(70,3,i/100,2,16);
+			OLED_ShowString(90,3,".",16);
+			OLED_ShowNum(93,3,(int)i/10%10,2,16);
+		OLED_ShowNum(110,3,(int)i%100,2,16);
+
+
+		i = INA226_GetPower();
+		i *= 100;
+
+			OLED_ShowNum(75,6,i/100,2,16);
+				OLED_ShowString(100,6,".",16);
+		OLED_ShowNum(103,6,(int)i%100,2,16);
+
+
+
+
+
+//		OLED_Clear();
+      OLED_ShowString(0,0,"I:",16);
+		  OLED_ShowString(0,3,"U:",16);
+		  OLED_ShowString(0,6,"P:",16);
+        //		delay_ms(1000)；
+
+
+		printf("电流:%.2fA\r\n",INIA226_GetCurrent());
+		printf("总线电压:%.2fV\r\n",INA226_GetBusVoltage());
+		printf("功率:%.2fW\r\n",INA226_GetPower());
+****************************************************************************************
+***************************************************************************************/
+//		printf("DAC接收的data=0x%02x\r\n",VOUT(3));//0011 0110
+//		delay_ms(50);
+
+    	key=Can_Receive_Msg(CANBUF_RX);
+
+		if(key)//接收到有数据从zet6上
+		{
+
+	      for(i=0;i<key;i++)
+			{
+				printf("c8t6接收到的number:%d\r\n   ",CANBUF_RX[i]);	//显示数据
+			}
+        if(CANBUF_RX[0]==1)
+       {
+					 	 LTC1473_Change(LTC1473_MODE_POWER);//电源供电
+       }
+        if(CANBUF_RX[0]==2)
+      {
+						 LTC1473_Change(LTC1473_MODE_CAP);//电容供电
+      }
+
+		}
+
+
+	    CANBUF_TX[0] = INIA226_GetCurrent();
+		CANBUF_TX[1] = INA226_GetBusVoltage();
+		CANBUF_TX[2] = INA226_GetPower();
+
+		key = Can_Send_Msg(CANBUF_TX,3);
+
+
+        delay_ms(500);
+    }
+}
+
